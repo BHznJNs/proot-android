@@ -1,6 +1,6 @@
 # proot-android
 
-面向独立 Android 应用的 PRoot 定向构建项目。使用 Windows 版 Android NDK，为 ARM64 应用生成可通过子进程启动的 PRoot 和独立 loader，并提供构建脚本、源码归档及验证记录。
+面向独立 Android 应用的 PRoot 定向构建项目。使用 Windows 版 Android NDK，为 ARM64 应用生成可通过子进程启动的 PRoot 和独立 loader，并提供构建脚本、源码归档及验证记录。基于 [termux/proot](https://github.com/termux/proot) 构建。
 
 当前基线已完成编译链接和 ELF 检查，尚未进行 APK 安装与 Android 设备运行验证。
 
