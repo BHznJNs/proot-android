@@ -1,0 +1,39 @@
+# Generated build trees, including Waf host-side junctions.
+/build-support/deps/
+/build-support/talloc-config/
+/build-support/native-deps/
+/build-support/proot-arm64/
+/build-support/bin/
+/build-support/talloc-cross-answers.txt
+/build-support/*.log
+
+# Keep the pinned, checksum-verified offline build input.
+/build-support/downloads/*
+!/build-support/downloads/talloc-2.5.0.tar.gz
+
+# Python bytecode and local environments.
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Machine-specific IDE and Android SDK configuration.
+/.vscode/
+/.idea/
+/.vs/
+*.iml
+/local.properties
+
+# Editor temporary files and OS metadata.
+*.tmp
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+jniLibs/
+compat/
+sources/

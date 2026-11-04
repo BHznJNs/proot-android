@@ -1,0 +1,55 @@
+{
+  "source_revision": "52d65a4dc140ca554d241a1438ddd4f6b00c9813",
+  "ndk": "30.0.16248370",
+  "android_api": 28,
+  "talloc": "2.5.0 (static, with its libreplace)",
+  "libandroid_shmem": false,
+  "runtime_tested": false,
+  "proot_source_changed": false,
+  "files": [
+    {
+      "file": "jniLibs/arm64-v8a/libproot.so",
+      "bytes": 242960,
+      "sha256": "442fba51265175b2670250fa3d4518c5c83a008e4609d8e6efb64273170fb2ac",
+      "elf_class": 64,
+      "machine": 183,
+      "needed": [
+        "libdl.so",
+        "libc.so"
+      ],
+      "load_alignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "elf_layout_16kb": true
+    },
+    {
+      "file": "jniLibs/arm64-v8a/libproot_loader.so",
+      "bytes": 17800,
+      "sha256": "28398e47d4c19a6837b3d47c1cb6d7fce2cd2ed14966f62ffe93ce8ad7bc34c3",
+      "elf_class": 64,
+      "machine": 183,
+      "needed": [],
+      "load_alignments": [
+        16384,
+        16384
+      ],
+      "elf_layout_16kb": true
+    },
+    {
+      "file": "compat/libproot_loader32.so",
+      "bytes": 17796,
+      "sha256": "fe68eda671e9f0895477d5e041526ae170659b6da4da21de6e4ba90e2564a0ec",
+      "elf_class": 32,
+      "machine": 40,
+      "needed": [],
+      "load_alignments": [
+        16384,
+        16384,
+        16384
+      ],
+      "elf_layout_16kb": true
+    }
+  ]
+}
