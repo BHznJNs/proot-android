@@ -17,8 +17,8 @@ The public build command remains `build.ps1 -SourceRoot <upstream-checkout>`.
 `build-support/compile_proot.py` creates a fresh `build-support/proot-arm64`
 tree for every build, then calls `source_overlay.py` before compilation.
 `build-support/build-manifest.json` records the upstream commit, source
-state, extension and patch hashes, and prepared source hash. The version
-string carries the suffix `+droidvps-port-map`.
+state, extension and patch hashes, prepared source hash, and the full
+version string identifying this extended build.
 
 The extension supports native ARM64 IPv4/IPv6 TCP and UDP port translation.
 It creates no network namespace. Its source and the integration patch
@@ -32,6 +32,9 @@ set `PROOT_TEST_SOURCE` to its location):
 python -m unittest discover -s build-support -p test_source_overlay.py -v
 ```
 
-Android socket and service regression tests live in the companion
-DroidVPS-android project's `PortMappingDeviceTest` and
-`PortMappingServiceDeviceTest` classes.
+For Android runtime validation, start PRoot from an installed application
+and run a guest listener with `--port-map=80:8080`. Verify access through
+host port 8080, IPv4/IPv6 and TCP/UDP behavior, loopback destinations,
+invalid mapping rejection, and port reuse after stopping the session.
+Record the device, build inputs, commands, and observed results with the
+integration's test records.
