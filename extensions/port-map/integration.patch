@@ -1,0 +1,67 @@
+diff --git a/GNUmakefile b/GNUmakefile
+index 5ade279..d91837a 100644
+--- a/GNUmakefile
++++ b/GNUmakefile
+@@ -83,6 +83,7 @@ OBJECTS += \
+ 	extension/hidden_files/hidden_files.o \
+ 	extension/mountinfo/mountinfo.o \
+ 	extension/port_switch/port_switch.o \
++	extension/port_switch/port_map.o \
+ 	extension/sysvipc/sysvipc.o \
+ 	extension/sysvipc/sysvipc_msg.o \
+ 	extension/sysvipc/sysvipc_sem.o \
+diff --git a/cli/proot.c b/cli/proot.c
+index 9e91e7c..15e9826 100644
+--- a/cli/proot.c
++++ b/cli/proot.c
+@@ -337,6 +337,11 @@ static int handle_option_p(Tracee *tracee, const Cli *cli UNUSED, const char *va
+         return 0;
+ }
+ 
++static int handle_option_port_map(Tracee *tracee, const Cli *cli UNUSED, const char *value)
++{
++        return initialize_extension(tracee, port_map_callback, value);
++}
++
+ /**
+  * Initialize @tracee->qemu.
+  */
+diff --git a/cli/proot.h b/cli/proot.h
+index d7abd43..7558f9f 100644
+--- a/cli/proot.h
++++ b/cli/proot.h
+@@ -69,6 +69,7 @@ static int handle_option_kill_on_exit(Tracee *tracee, const Cli *cli, const char
+ static int handle_option_L(Tracee *tracee, const Cli *cli, const char *value);
+ static int handle_option_H(Tracee *tracee, const Cli *cli, const char *value);
+ static int handle_option_p(Tracee *tracee, const Cli *cli, const char *value);
++static int handle_option_port_map(Tracee *tracee, const Cli *cli, const char *value);
+ 
+ static int pre_initialize_bindings(Tracee *, const Cli *, size_t, char *const *, size_t);
+ static int post_initialize_exe(Tracee *, const Cli *, size_t, char *const *, size_t);
+@@ -280,6 +281,14 @@ Copyright (C) 2015 STMicroelectronics, licensed under GPL v2 or later.",
+           .description = "Modify bindings to protected ports to use a higher port number.",
+           .detail = "",
+         },
++        { .class = "Extension options",
++          .arguments = {
++                { .name = "--port-map", .separator = '=', .value = "guest:host,..." },
++                { .name = NULL, .separator = '\0', .value = NULL } },
++          .handler = handle_option_port_map,
++          .description = "Map IPv4/IPv6 TCP and UDP ports (guest:host pairs).",
++          .detail = "Use once with up to 64 comma-separated pairs. Host ports must be >=1024.\n",
++        },
+         { .class = "Extension options",
+           .arguments = {
+                 { .name = "-L", .separator = '\0', .value = NULL },
+diff --git a/extension/extension.h b/extension/extension.h
+index 7df1fa0..c999a1a 100644
+--- a/extension/extension.h
++++ b/extension/extension.h
+@@ -229,6 +229,7 @@ extern int kompat_callback(Extension *extension, ExtensionEvent event, intptr_t
+ extern int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+ extern int hidden_files_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+ extern int port_switch_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
++extern int port_map_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+ extern int link2symlink_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+ extern int fix_symlink_size_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+ #if defined(__ANDROID__) || defined(__BIONIC__)

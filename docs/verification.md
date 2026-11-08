@@ -49,3 +49,19 @@ foreach ($file in $baseline.files) {
 本次没有运行 PRoot 项目 tests，也没有安装 Android 测试 APK。编译记录中保留了上游代码的警告；编译成功不代表这些警告已修复。
 
 后续结果应记录设备 ABI、Android/API/targetSdk、页大小、源码与二进制版本、实际命令和观测结果。只有对应操作实际成功后，才将其标为通过。
+
+## 构建时注入端口映射扩展（2026-11-08）
+
+端口映射的实现已迁移到 `extensions/port-map/port_map.c`，四处编译和 CLI 接入修改保存在同目录 `integration.patch`。输入的 Termux PRoot 源码内容恢复为原基线 `52d65a4dc140ca554d241a1438ddd4f6b00c9813`，无需维护带功能修改的 PRoot 分支；原有增加和撤回的本地提交仅保留历史记录。
+
+每次构建在经过路径检查的生成目录中创建新副本，先检查全部补丁，再在副本应用补丁并复制扩展。补丁命令通过 Git 搜索边界与输入仓库隔离，并显式验证四个接入点，避免 Git 在宿主仓库子目录中跳过补丁却返回成功。旧对象和注入文件不会跨构建复用。版本字符串带 `+droidvps-port-map`，输入版本及源码／扩展／补丁散列写入 `build-support/build-manifest.json`。
+
+验证结果：
+
+- 5 项 Python 构建准备测试通过：只修改副本、原始源码散列不变、在另一个 Git 仓库内部正确注入、不兼容上游拒绝、重复注入拒绝，以及既有构建目录和重叠路径拒绝。
+- 从恢复原版内容的 PRoot 输入构建主程序及 ARM64 / ARM32 loader 成功，接入编译单元在编译日志中确认。
+- DroidVPS APK 构建、21 项 JVM 测试与 Lint 通过；Lint 0 错误、22 条既有警告。
+- Android 12 ARM64 真机本轮 6 项回归通过：原生 TCP / UDP 与 IPv4 / IPv6 映射及端口复用、非法参数拒绝、配置恢复及冲突、监督进程停止字节、管道 EOF、实际 App 服务启动／访问／冲突拦截／停止／重启。未重新运行 UI 或远程镜像拉取测试。
+- 迁移未更改端口映射 C 代码及运行行为。早期验证发现 Git 子目录跳过接入补丁的问题，已修复并增加回归测试；修复前的设备失败不计为通过。
+
+本轮结果见工作区 `build-results/port-mapping-overlay-verification.json`，Android 侧记录为 `DroidVPS-android/port-mapping-overlay-{build,device,service}.log`。原 `verification.json`、先前端口映射报告和历史 SHA256 均继续表示各自当时的产物。

@@ -6,6 +6,7 @@
 /build-support/bin/
 /build-support/talloc-cross-answers.txt
 /build-support/*.log
+/build-support/build-manifest.json
 
 # Keep the pinned, checksum-verified offline build input.
 /build-support/downloads/*

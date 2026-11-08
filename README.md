@@ -2,7 +2,7 @@
 
 面向独立 Android 应用的 PRoot 定向构建项目。使用 Windows 版 Android NDK，为 ARM64 应用生成可通过子进程启动的 PRoot 和独立 loader，并提供构建脚本、源码归档及验证记录。基于 [termux/proot](https://github.com/termux/proot) 构建。
 
-当前基线已完成编译链接和 ELF 检查，尚未进行 APK 安装与 Android 设备运行验证。
+原始交付基线的编译与 ELF 检查记录保留在原验证文档中。当前端口映射扩展由本项目在构建副本中注入，上游源码目录保持原样；扩展及设备验证见 [端口映射扩展](extensions/port-map/README.md)。
 
 ## 文档
 
@@ -22,9 +22,9 @@
 .\build.ps1 -SourceRoot '..\proot'
 ```
 
-`SourceRoot` 指向另外检出的 `termux/proot` 源码仓库。完整前提、可选参数和产物位置见[构建说明](docs/build.md)。
+`SourceRoot` 指向另外检出的原版 `termux/proot` 源码仓库，无需维护 PRoot fork。构建时自动复制源码、检查并应用本项目的接入补丁，再编译端口映射扩展；不会修改输入仓库。完整前提、可选参数和产物位置见[构建说明](docs/build.md)。
 
-## 构建基线
+## 原始交付基线
 
 | 项目 | 当前记录 |
 | --- | --- |

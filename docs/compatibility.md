@@ -35,7 +35,7 @@ ashmem_memfd.c
 
 | 处理 | 原因与实现 |
 | --- | --- |
-| 在源码副本中构建 | 原始 Makefile 的外部目录模式曾出现 SRC 与 VPATH 展开路径重复；复制 src 后保持 Makefile 原样执行 |
+| 在源码副本中构建 | 原始 Makefile 的外部目录模式曾出现 SRC 与 VPATH 展开路径重复；复制 src 后仅在副本中注入本项目的端口映射扩展和编译接入补丁 |
 | 先生成 build.h | 显式完成平台编译/链接探测，再并行构建其他目标 |
 | `-m32` 映射 | 将 Makefile 的兼容调用映射到 `armv7a-linux-androideabi28`，并使用 `-marm` |
 | `/dev/null` 探测输出 | Windows 编译器包装器使用临时输出文件接收 Makefile 的链接探测结果 |

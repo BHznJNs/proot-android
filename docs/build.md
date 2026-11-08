@@ -7,7 +7,7 @@
 | Android NDK | `30.0.16248370`；入口脚本会检查版本 |
 | Python | 3.11.5 或更新版本 |
 | Git for Windows | 提供 Git 及 Git Bash |
-| PRoot 源码 | 单独检出的 `termux/proot` 或基于它的 fork，包含 Git 元数据 |
+| PRoot 源码 | 单独检出的原版 `termux/proot`，包含 Git 元数据；接入补丁已验证基线为 `52d65a4dc140ca554d241a1438ddd4f6b00c9813` |
 | talloc 源码 | 项目已附带 2.5.0 归档，入口脚本校验 SHA256 |
 
 当前公开入口固定构建 ARM64 / API 28。`compile_proot.py` 虽然有 `--api` 参数，但 talloc 配置脚本固定为 API 28；不能仅修改该参数就宣称完成了其他 API 的一致构建。
@@ -38,8 +38,8 @@
 
 1. 校验工具路径、NDK 版本和 talloc 源码归档 SHA256。
 2. 首次解包 talloc，在 `build-support/talloc-config` 中运行 Waf 交叉配置。
-3. 编译 talloc 和所需的 libreplace，并生成静态归档。
-4. 将 PRoot 的 `src` 原样复制到 `build-support/proot-arm64`，通过原始 GNUmakefile 编译。
+3. 核对生成目录的绝对路径并清理旧的 `build-support/proot-arm64`，将 PRoot 的 `src` 复制到新的构建目录。
+4. 对副本检查并应用 `extensions/port-map/integration.patch`，复制 `port_map.c`，注册编译单元和命令行参数。补丁不匹配或输入源码已带此扩展时立即失败；输入仓库保持原样。随后编译 talloc 和所需的 libreplace，并生成静态归档。
 5. 显式生成 `build.h`，编译主程序、ARM64 loader 和 ARM32 兼容 loader。
 6. 把两个 ARM64 文件复制到 `jniLibs/arm64-v8a` 并 strip。
 
@@ -54,6 +54,7 @@
 | `build-support/proot-arm64/loader/loader-m32` | 本次构建的 ARM32 loader |
 | `build-support/talloc-configure.log` | 依赖配置日志 |
 | `build-support/compile.log` | 编译与链接日志 |
+| `build-support/build-manifest.json` | 上游版本、源码状态、扩展及补丁 SHA256 和构建副本 SHA256 |
 
 当前 `build.ps1` 只更新两个 ARM64 交付文件。它不会自动更新 `compat/libproot_loader32.so`、`verification.json`、`elf-details.txt` 或根目录的 `build-log.txt`；这些仍是原交付基线记录。重新构建后需重新收集校验信息，不能继续把旧记录当作新产物的验证结果。
 
@@ -62,4 +63,5 @@
 - 入口脚本发现已有 talloc `config.h` 时会复用配置。更换工具链或修改依赖配置时，宜在新的构建项目副本中重新配置，避免混用缓存。
 - 构建目录含 Windows junction。清理前应确认目标及其链接关系，不要盲目递归删除或跟随链接清理源目录。
 - 先检查失败阶段对应的日志。`strcmp`/`memset` 的声明问题详见[头文件包含链](compatibility.md#stringh-的间接包含依赖)。
-- 当前没有自动处理源码切换后的全部增量构建失效问题。更换源码基线时使用新的构建项目副本更容易获得可核对的结果。
+- 每次构建重新生成 PRoot 源码目录，避免旧对象文件或旧扩展残留。talloc 的配置缓存仍按上述规则管理。
+- 升级上游时需要检查本项目的四处接入补丁是否仍匹配，详见 [端口映射扩展](../extensions/port-map/README.md)。版本字符串包含 `+droidvps-port-map`，用于区分原版与本项目构建。

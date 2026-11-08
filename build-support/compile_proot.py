@@ -1,11 +1,14 @@
-"""Build the unmodified Termux GNUmakefile out of tree on Windows."""
+"""Build Termux PRoot with local extensions applied only to a disposable source copy."""
 import argparse
+import json
 import os
 from pathlib import Path
 import shlex
 import subprocess
 import sys
 import shutil
+import stat
+from source_overlay import prepare_source
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--source', type=Path, required=True)
@@ -22,9 +25,15 @@ depbuild = root / 'native-deps'
 bindir = root / 'bin'
 for directory in (build, depbuild, bindir):
     directory.mkdir(parents=True, exist_ok=True)
-# The upstream Makefile prefixes SRC to prerequisites already expanded by
-# VPATH. Build a byte-for-byte source snapshot to avoid that path duplication.
-shutil.copytree(source / 'src', build, dirs_exist_ok=True)
+# This is a generated tree only. Check its absolute target before removing it,
+# and never reuse objects or injected source files from a previous build.
+if build.resolve() != root / 'proot-arm64' or source == build.resolve() or build.resolve() in source.parents or source in build.resolve().parents:
+    raise SystemExit('Unsafe generated build directory.')
+if build.is_symlink() or (build.exists() and getattr(build.lstat(), 'st_file_attributes', 0) & getattr(stat, 'FILE_ATTRIBUTE_REPARSE_POINT', 0)):
+    raise SystemExit('The generated build directory must not be a link or junction.')
+if build.exists():
+    shutil.rmtree(build)
+inputs = prepare_source(source / 'src', build)
 for generated in ('.check_process_vm.res', '.check_seccomp_filter.res', 'build.h'):
     (build / generated).unlink(missing_ok=True)
 for loader in ('loader/loader', 'loader/loader-m32'):
@@ -62,9 +71,13 @@ with logpath.open('w', encoding='utf-8') as log:
     readelf = tools / 'llvm-readelf.exe'
     (bindir / 'readelf').write_text('#!/bin/sh\nexec ' + shlex.quote(readelf.as_posix()) + ' "$@"\n', encoding='utf-8', newline='\n')
     commit = subprocess.check_output(['git', '-c', 'core.bare=false', '-C', str(source), 'rev-parse', '--short=12', 'HEAD'], env=env, text=True).strip()
+    inputs['upstream_commit'] = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], env=env, text=True).strip()
+    inputs['upstream_dirty'] = bool(subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain', '--', 'src'], env=env, text=True).strip())
+    inputs['version'] = commit + '+droidvps-port-map'
+    (root / 'build-manifest.json').write_text(json.dumps(inputs, indent=2) + '\n', encoding='utf-8')
     env['CPPFLAGS'] = ' '.join((
         shlex.quote('-I' + talloc.as_posix()),
-        '-DARG_MAX=131072', '-DVERSION=\\"' + commit + '\\"'))
+        '-DARG_MAX=131072', '-DVERSION=\\"' + inputs['version'] + '\\"'))
     env['CFLAGS'] = ' '.join(shlex.quote(x) for x in common[1:]) + ' -fPIE'
     env['LDFLAGS'] = shlex.quote('-L' + depbuild.as_posix()) + ' -pie -Wl,--gc-sections,-z,max-page-size=16384'
     env['PROOT_UNBUNDLE_LOADER'] = '/proot-loader'
