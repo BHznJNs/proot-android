@@ -2,7 +2,7 @@
 
 ## 目标与运行方式
 
-本项目复用 `termux/proot` 的 Android 适配，构建供独立 Android 应用分发和启动的原生程序。输入的 PRoot 仓库保持原样；端口映射源码和接入补丁由本项目维护，仅应用到生成的源码副本，不要求维护单独的 PRoot 分支。
+本项目复用 `termux/proot` 的 Android 适配，构建供独立 Android 应用分发和启动的原生程序。输入的 PRoot 仓库保持原样；端口映射及 Android 会话模式的源码和接入补丁由本项目维护，仅应用到生成的源码副本，不要求维护单独的 PRoot 分支。
 
 ```text
 Android 应用的 Kotlin/Java 代码
@@ -12,7 +12,7 @@ Android 应用的 Kotlin/Java 代码
         -> rootfs 内的 Linux 程序及其子进程
 ```
 
-应用需要自行提供 rootfs、命令参数、输入输出及会话生命周期管理。PRoot 通过 ptrace 等机制工作，保留应用自身的 UID、SELinux 和 seccomp 限制。
+应用需要自行提供 rootfs、命令参数及输入输出。非交互后台服务可用 `--android-session` 将控制管道和异常退出清理交给本项目的会话模式；交互终端仍需 PTY 等集成。PRoot 通过 ptrace 等机制工作，保留应用自身的 UID、SELinux 和 seccomp 限制。
 
 ## 项目目录
 
@@ -24,6 +24,7 @@ Android 应用的 Kotlin/Java 代码
 | `build-support/ndk_cc.py` | NDK 编译器适配与单文件强制头文件包含 |
 | `build-support/source_overlay.py` | 在源码副本中检查并注入本地扩展 |
 | `extensions/port-map` | 端口映射源码、接入补丁和维护说明 |
+| `extensions/android-session` | Android 会话监督源码、启动接入补丁和维护说明 |
 | `build-support/build-manifest.json` | 本次构建输入版本与散列，构建时生成 |
 | `build-support/downloads` | 构建使用的 talloc 源码归档 |
 | `jniLibs/arm64-v8a` | 可供 Android 应用打包的 ARM64 主程序和 loader |

@@ -63,3 +63,17 @@ foreach ($file in $baseline.files) {
 - Android 12 ARM64 设备上的集成验证覆盖组件行为：IPv4 / IPv6 TCP / UDP 端口转换、并行 PRoot 会话使用独立宿主端口、非法映射拒绝、停止后端口复用。
 
 本项目的本次编译日志为 `build-support/compile.log`，构建输入信息见 `build-support/build-manifest.json`。集成应用的界面、配置存储和服务生命周期测试由集成方记录。原 `verification.json`、`elf-details.txt` 和 `build-log.txt` 继续表示原始交付基线，不会被重建自动更新。
+
+## 内置 Android 会话监督（2026-11-08）
+
+新增可选的 `--android-session` 首参数入口，源码和接入补丁位于 `extensions/android-session`。同一个 ELF 内保留会话父进程与 PRoot worker，接管原来 App 独立 supervisor 的控制管道、信号掩码初始化、父进程死亡处理及等待退出。停止仍通过 SIGQUIT 触发 tracee 的 SIGKILL 清理；没有新增 guest TERM 宽限期。worker 在安装清理处理器后才解除启动阶段的 SIGQUIT 屏蔽，guest 则在进入 tracing 前清空掩码。未启用该模式的启动钩子为空操作。
+
+验证结果：
+
+- 6 项主机源码准备测试通过，包括会话接入点不兼容时在写入任何补丁前拒绝；原版 `proot` 仓库保持干净。
+- NDK 30 / ARM64 API 28 构建主程序及 ARM64 / ARM32 loader 成功；会话源文件单独通过 `-Wall -Wextra -Werror -fsyntax-only` 检查，主程序 LOAD 段为 16 KB 对齐。
+- Android 12 / ARM64 / 4 KB 页设备，从实际安装的 App 经 ART → ProcessBuilder 运行 8 项会话设备测试通过：停止字节、管道 EOF、TERM、会话父进程 SIGKILL、启动时立即取消（12 轮）、guest stdin EOF 和退出码、主命令退出清理后台子进程，以及普通 PRoot 入口回归。
+- 同一设备另有 5 项集成测试通过：3 项端口映射（IPv4 / IPv6 TCP / UDP、并行会话、冲突、停止后重启及非法参数）、1 项真实 Alpine 拉取／启动／停止／重启／删除、1 项配置存储。合计 `OK (13 tests)`。
+- 集成 App 的 APK 构建、21 项 JVM 测试及 Lint 通过；Lint 无错误，22 项警告位于既有配置、依赖及资源。APK 确认没有 `libsupervisor.so`，包含的 `libproot.so` 与本项目重建产物逐字节一致。
+
+本轮未验证其他 Android 版本、16 KB 页设备、交互 PTY 或系统强行停止时的行为。原始日志、产物散列及集成记录位于同级集成工作区的 `build-results/android-session-*`，集成方的 `app/DEVICE_VALIDATION.md` 记录详细结果。原始交付基线记录继续保留。

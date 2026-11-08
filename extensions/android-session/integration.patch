@@ -1,0 +1,67 @@
+--- a/GNUmakefile
++++ b/GNUmakefile
+@@ -60,6 +60,7 @@
+ 	ptrace/user.o		\
+ 	ptrace/wait.o		\
+ 	extension/extension.o	\
++	extension/android_session/android_session.o \
+ 	extension/ashmem_memfd/ashmem_memfd.o \
+ 	extension/kompat/kompat.o \
+ 	extension/fake_id0/chown.o \
+--- a/cli/cli.c
++++ b/cli/cli.c
+@@ -36,6 +36,7 @@
+ #endif
+ #include <limits.h>        /* INT_MAX, */
+ 
++#include "extension/android_session/android_session.h"
+ #include "cli/cli.h"
+ #include "cli/note.h"
+ #include "extension/extension.h"
+@@ -62,6 +63,7 @@
+ 
+ 	DETAIL(printf("%s %s: %s.\n\n", cli->name, cli->version, cli->subtitle));
+ 	printf("Usage:\n  %s\n", cli->synopsis);
++	printf("  %s --android-session [proot options] command [args...]\n", cli->name);
+ 	DETAIL(printf("\n"));
+ 
+ 	options = cli->options;
+@@ -443,6 +445,9 @@
+ 
+ int main(int argc, char *const argv[])
+ {
++	if (argc > 1 && strcmp(argv[1], "--android-session") == 0)
++		return android_session_main(argc, argv, main);
++
+ 	Tracee *tracee;
+ 	pid_t pid;
+ 	int status;
+--- a/tracee/event.c
++++ b/tracee/event.c
+@@ -26,6 +26,8 @@
+ #include <sys/types.h>  /* waitpid(2), */
+ #include <sys/wait.h>   /* waitpid(2), */
+ #include <sys/utsname.h> /* uname(2), */
++#include "extension/android_session/android_session.h"
++
+ #include <signal.h>     /* signal(2), SIG_DFL, */
+ #include <unistd.h>     /* fork(2), chdir(2), getpid(2), */
+ #include <string.h>     /* strcmp(3), */
+@@ -113,6 +115,8 @@
+ 		return -errno;
+ 
+ 	case 0: /* child */
++		android_session_guest_ready();
++
+ 		/* SIG_IGN survives fork(2) and execve(2), so an ignored
+ 		 * SIGPIPE anywhere above proot is inherited by every
+ 		 * process of the guest: write(2) then fails with EPIPE
+@@ -385,6 +389,8 @@
+ 	status = sigaction(SIGALRM, &signal_action, NULL);
+ 	if (status < 0)
+ 		note(NULL, WARNING, SYSTEM, "sigaction(SIGALRM)");
++
++	android_session_tracer_ready();
+ 
+ 	while (1) {
+ 		int tracee_status;

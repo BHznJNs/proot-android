@@ -7,6 +7,7 @@ import subprocess
 
 
 PORT_MAP = Path(__file__).resolve().parents[1] / 'extensions/port-map'
+ANDROID_SESSION = Path(__file__).resolve().parents[1] / 'extensions/android-session'
 
 
 def tree_digest(directory: Path) -> str:
@@ -18,19 +19,23 @@ def tree_digest(directory: Path) -> str:
     return digest.hexdigest()
 
 
-def prepare_source(source: Path, build: Path, extension: Path = PORT_MAP) -> dict:
+def prepare_source(source: Path, build: Path, extension: Path = PORT_MAP,
+                   session: Path = ANDROID_SESSION) -> dict:
     source, build, extension = source.resolve(), build.resolve(), extension.resolve()
+    session = session.resolve()
     if source == build or source in build.parents or build in source.parents:
         raise ValueError('The generated build tree must be separate from the PRoot source tree.')
     if not (source / 'GNUmakefile').is_file():
         raise ValueError('The PRoot source directory must contain GNUmakefile.')
-    if (source / 'extension/port_switch/port_map.c').exists():
-        raise ValueError('Use an unmodified Termux PRoot checkout; port mapping is injected by proot-android.')
+    if ((source / 'extension/port_switch/port_map.c').exists()
+            or (source / 'extension/android_session').exists()):
+        raise ValueError('Use an unmodified Termux PRoot checkout; extensions are injected by proot-android.')
     if build.exists():
         raise ValueError('Source preparation requires a fresh build directory.')
     source_hash = tree_digest(source)
     shutil.copytree(source, build)
     patch = extension / 'integration.patch'
+    patches = (patch, session / 'integration.patch')
     command = ['git', 'apply', '--no-index', '--whitespace=error-all']
     environment = os.environ.copy()
     # --no-index alone still discovers an enclosing repository and may skip
@@ -41,11 +46,12 @@ def prepare_source(source: Path, build: Path, extension: Path = PORT_MAP) -> dic
     try:
         # Check every hunk before applying. Unsupported upstream changes must fail visibly.
         for options in (['--check'], []):
-            subprocess.run([*command, *options, str(patch)], cwd=build, env=environment, check=True,
-                           stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            for integration in patches:
+                subprocess.run([*command, *options, str(integration)], cwd=build, env=environment, check=True,
+                               stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except subprocess.CalledProcessError as error:
-        raise RuntimeError('Port mapping integration patch does not match this PRoot source. '
-                           'Review extensions/port-map/integration.patch for the selected upstream revision.\n'
+        raise RuntimeError('An extension integration patch does not match this PRoot source. '
+                           'Review extensions/*/integration.patch for the selected upstream revision.\n'
                            + error.stderr.strip()) from error
     expected = {
         'GNUmakefile': b'extension/port_switch/port_map.o',
@@ -57,9 +63,24 @@ def prepare_source(source: Path, build: Path, extension: Path = PORT_MAP) -> dic
         if marker not in (build / name).read_bytes():
             raise RuntimeError('Port mapping integration was not applied to ' + name)
     shutil.copyfile(extension / 'port_map.c', build / 'extension/port_switch/port_map.c')
+    for name, marker in {
+        'GNUmakefile': b'extension/android_session/android_session.o',
+        'cli/cli.c': b'return android_session_main(argc, argv, main);',
+        'tracee/event.c': b'android_session_tracer_ready();',
+    }.items():
+        if marker not in (build / name).read_bytes():
+            raise RuntimeError('Android session integration was not applied to ' + name)
+    if b'android_session_guest_ready();' not in (build / 'tracee/event.c').read_bytes():
+        raise RuntimeError('Android session guest setup was not applied')
+    destination = build / 'extension/android_session'
+    destination.mkdir()
+    for name in ('android_session.c', 'android_session.h'):
+        shutil.copyfile(session / name, destination / name)
     return {
         'source_tree_sha256': source_hash,
         'port_map_sha256': hashlib.sha256((extension / 'port_map.c').read_bytes()).hexdigest(),
         'integration_patch_sha256': hashlib.sha256(patch.read_bytes()).hexdigest(),
+        'android_session_sha256': tree_digest(session),
+        'android_session_patch_sha256': hashlib.sha256(patches[1].read_bytes()).hexdigest(),
         'prepared_tree_sha256': tree_digest(build),
     }

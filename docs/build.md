@@ -39,7 +39,7 @@
 1. 校验工具路径、NDK 版本和 talloc 源码归档 SHA256。
 2. 首次解包 talloc，在 `build-support/talloc-config` 中运行 Waf 交叉配置。
 3. 核对生成目录的绝对路径并清理旧的 `build-support/proot-arm64`，将 PRoot 的 `src` 复制到新的构建目录。
-4. 对副本检查并应用 `extensions/port-map/integration.patch`，复制 `port_map.c`，注册编译单元和命令行参数。补丁不匹配或输入源码已带此扩展时立即失败；输入仓库保持原样。随后编译 talloc 和所需的 libreplace，并生成静态归档。
+4. 先检查 `extensions/port-map/integration.patch` 和 `extensions/android-session/integration.patch`，再对副本应用补丁并复制扩展源码，注册编译单元、命令行入口和启动钩子。补丁不匹配或输入源码已带扩展时立即失败；输入仓库保持原样。随后编译 talloc 和所需的 libreplace，并生成静态归档。
 5. 显式生成 `build.h`，编译主程序、ARM64 loader 和 ARM32 兼容 loader。
 6. 把两个 ARM64 文件复制到 `jniLibs/arm64-v8a` 并 strip。
 
@@ -64,4 +64,4 @@
 - 构建目录含 Windows junction。清理前应确认目标及其链接关系，不要盲目递归删除或跟随链接清理源目录。
 - 先检查失败阶段对应的日志。`strcmp`/`memset` 的声明问题详见[头文件包含链](compatibility.md#stringh-的间接包含依赖)。
 - 每次构建重新生成 PRoot 源码目录，避免旧对象文件或旧扩展残留。talloc 的配置缓存仍按上述规则管理。
-- 升级上游时需要检查本项目的四处接入补丁是否仍匹配，详见 [端口映射扩展](../extensions/port-map/README.md)。完整版本字符串记录在构建清单中，并带有端口映射扩展标识，用于区分原版与本项目构建。
+- 升级上游时需要检查两份接入补丁是否仍匹配，详见 [端口映射扩展](../extensions/port-map/README.md)和 [Android 会话模式](../extensions/android-session/README.md)。完整版本字符串记录在构建清单中，并带有两项扩展标识，用于区分原版与本项目构建。

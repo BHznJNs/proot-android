@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 import unittest
 
-from source_overlay import PORT_MAP, prepare_source, tree_digest
+from source_overlay import ANDROID_SESSION, PORT_MAP, prepare_source, tree_digest
 
 
 class SourceOverlayTest(unittest.TestCase):
@@ -17,7 +17,8 @@ class SourceOverlayTest(unittest.TestCase):
         upstream = Path(os.environ.get('PROOT_TEST_SOURCE', Path(__file__).resolve().parents[2] / 'proot')) / 'src'
         self.source = self.directory / 'upstream'
         self.source.mkdir()
-        for name in ('GNUmakefile', 'cli/proot.c', 'cli/proot.h', 'extension/extension.h', 'extension/port_switch/port_switch.c'):
+        for name in ('GNUmakefile', 'cli/cli.c', 'cli/proot.c', 'cli/proot.h', 'tracee/event.c',
+                     'extension/extension.h', 'extension/port_switch/port_switch.c'):
             destination = self.source / name
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(upstream / name, destination)
@@ -33,6 +34,20 @@ class SourceOverlayTest(unittest.TestCase):
         self.assertEqual((PORT_MAP / 'port_map.c').read_bytes(), (self.build / 'extension/port_switch/port_map.c').read_bytes())
         self.assertIn('--port-map', (self.build / 'cli/proot.h').read_text())
         self.assertIn('extension/port_switch/port_map.o', (self.build / 'GNUmakefile').read_text())
+        self.assertEqual(tree_digest(ANDROID_SESSION), result['android_session_sha256'])
+        self.assertFalse((self.source / 'extension/android_session').exists())
+        self.assertEqual((ANDROID_SESSION / 'android_session.c').read_bytes(),
+                         (self.build / 'extension/android_session/android_session.c').read_bytes())
+        self.assertIn('android_session_tracer_ready();', (self.build / 'tracee/event.c').read_text())
+
+    def test_rejects_incompatible_session_hooks_before_applying_any_patch(self):
+        entry = self.source / 'cli/cli.c'
+        entry.write_text(entry.read_text().replace('int main(', 'int upstream_main('))
+        before = tree_digest(self.source)
+        with self.assertRaisesRegex(RuntimeError, 'does not match'):
+            prepare_source(self.source, self.build)
+        self.assertEqual(before, tree_digest(self.source))
+        self.assertNotIn('--port-map', (self.build / 'cli/proot.h').read_text())
 
     def test_rejects_incompatible_upstream_without_changing_it(self):
         header = self.source / 'cli/proot.h'

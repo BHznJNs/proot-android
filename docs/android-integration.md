@@ -69,7 +69,15 @@ val exitCode = child.waitFor()
 
 这版不需要为 talloc 设置 `LD_LIBRARY_PATH`。上例一次性收集小量输出；长期任务应持续消费输出并控制缓存大小，交互式终端还需要 PTY、输入转发和窗口尺寸管理。
 
-PRoot 会启动 guest 进程树，停止逻辑需要管理整个会话；不能仅凭 `Process.destroy()` 就认定所有后代进程已回收。
+普通 PRoot 会启动 guest 进程树，停止逻辑需要管理整个会话；不能仅凭 `Process.destroy()` 就认定所有后代进程已回收。
+
+## 非交互后台会话
+
+长期服务建议以 `libproot.so --android-session --kill-on-exit ...` 启动；`--android-session` 必须是第一个参数。这个模式内置监督父进程和 PRoot worker，无需单独打包 `libsupervisor.so`，也不减少进程数。
+
+宿主持有 `Process.outputStream` 作为控制管道；guest 的 stdin 为 `/dev/null`。停止时写入字节 `q` 并 flush，或者关闭控制管道。TERM/INT/QUIT 发给会话父进程也会请求停止。持续读取日志，并等待 `waitFor()` 后再把会话标记为已停止。
+
+会话模式清空 ART 继承的信号屏蔽，处理管道 EOF 和父进程死亡；停止仍通过 worker 的 SIGQUIT 清理 tracee，属于立即强制清理，没有 guest TERM 宽限期。`--kill-on-exit` 同时确保主命令正常结束时清理后台子进程。普通启动方式不受影响。详细协议与启动竞态处理见 [Android 会话模式](../extensions/android-session/README.md)。
 
 ## 当前边界
 

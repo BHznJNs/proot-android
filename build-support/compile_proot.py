@@ -73,7 +73,7 @@ with logpath.open('w', encoding='utf-8') as log:
     commit = subprocess.check_output(['git', '-c', 'core.bare=false', '-C', str(source), 'rev-parse', '--short=12', 'HEAD'], env=env, text=True).strip()
     inputs['upstream_commit'] = subprocess.check_output(['git', '-C', str(source), 'rev-parse', 'HEAD'], env=env, text=True).strip()
     inputs['upstream_dirty'] = bool(subprocess.check_output(['git', '-C', str(source), 'status', '--porcelain', '--', 'src'], env=env, text=True).strip())
-    inputs['version'] = commit + '+droidvps-port-map'
+    inputs['version'] = commit + '+port-map+android-session'
     (root / 'build-manifest.json').write_text(json.dumps(inputs, indent=2) + '\n', encoding='utf-8')
     env['CPPFLAGS'] = ' '.join((
         shlex.quote('-I' + talloc.as_posix()),
