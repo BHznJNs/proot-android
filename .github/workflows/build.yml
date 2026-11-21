@@ -1,0 +1,70 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: proot-android
+      - uses: actions/checkout@v4
+        with:
+          repository: termux/proot
+          ref: 52d65a4dc140ca554d241a1438ddd4f6b00c9813
+          path: proot
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android NDK
+        shell: pwsh
+        run: |
+          & "$env:ANDROID_HOME\cmdline-tools\latest\bin\sdkmanager.bat" "ndk;30.0.16248370"
+          if ($LASTEXITCODE -ne 0) { throw "NDK installation failed" }
+      - name: Test source overlay
+        working-directory: proot-android
+        run: python -m unittest discover -s build-support -p 'test_*.py'
+      - name: Build and package
+        shell: pwsh
+        working-directory: proot-android
+        run: |
+          $ndk = Join-Path $env:ANDROID_HOME 'ndk\30.0.16248370'
+          ./build.ps1 -SourceRoot ../proot -NdkRoot $ndk
+          $out = 'release/proot-android'
+          New-Item -ItemType Directory -Force "$out/jniLibs/arm64-v8a", "$out/compat" | Out-Null
+          Copy-Item jniLibs/arm64-v8a/*.so "$out/jniLibs/arm64-v8a/"
+          Copy-Item build-support/proot-arm64/loader/loader-m32 "$out/compat/libproot_loader32.so"
+          & "$ndk/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-strip.exe" --strip-all "$out/compat/libproot_loader32.so"
+          if ($LASTEXITCODE -ne 0) { throw 'ARM32 loader stripping failed' }
+          Copy-Item build-support/build-manifest.json "$out/"
+          New-Item -ItemType Directory -Force "$out/licenses" | Out-Null
+          Copy-Item ../proot/COPYING "$out/licenses/PRoot-COPYING"
+          Copy-Item build-support/deps/talloc-2.5.0/LICENSE "$out/licenses/talloc-LICENSE"
+          Copy-Item README.md "$out/"
+          Copy-Item -Recurse docs "$out/"
+          Compress-Archive -Path "$out/*" -DestinationPath release/proot-android.zip
+          $hash = (Get-FileHash release/proot-android.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  proot-android.zip" | Set-Content -Encoding ascii release/SHA256SUMS.txt
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            proot-android/release/proot-android.zip
+            proot-android/release/SHA256SUMS.txt
